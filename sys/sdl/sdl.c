@@ -33,6 +33,7 @@
 #include "rtc.h"
 
 bool emuquit = 0;
+int speedup = 0;
 
 static char datfile[512];
 
@@ -320,8 +321,10 @@ void ev_poll()
 			switch(event.key.keysym.sym)
 			{
 				case SDLK_BACKSPACE:
-				case SDLK_TAB:
 					menu_triggers = 1;
+				break;
+				case SDLK_TAB:
+					speedup = 1;
 				break;
 				case SDLK_RETURN:
 					hw_setpad(PAD_START, 1);
@@ -355,9 +358,11 @@ void ev_poll()
 			switch(event.key.keysym.sym)
 			{
 				case SDLK_BACKSPACE:
-				case SDLK_TAB:
 				case SDLK_HOME:
 					menu_triggers = 1;
+				break;
+				case SDLK_TAB:
+					speedup = 0;
 				break;
 				case SDLK_RETURN:
 					hw_setpad(PAD_START, 0);
@@ -479,6 +484,12 @@ static void vid_close()
 void vid_begin()
 {
 	SDL_Rect dst_dest, src_dest;
+	if (speedup) {
+		if (speedup++ < 8) {
+			return;
+		}
+		speedup = 1;
+	}
 	/* If screen width is 240 then use RS-90 codepath, otherwise use Generic. */
 	if (screen->w == 240)
 	{

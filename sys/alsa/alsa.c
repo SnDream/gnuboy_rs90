@@ -13,6 +13,8 @@ static int sound = 1;
 
 static snd_pcm_t *handle;
 
+extern int speedup;
+
 void pcm_silence()
 {
 	if (handle) snd_pcm_drain(handle);
@@ -153,7 +155,7 @@ int pcm_submit()
 	if (pcm.pos < pcm.len)
         return 1;
 
-	if (pcm.buf)
+	if (pcm.buf && !speedup)
 	{
 		// byte * bleh = (byte *) soundbuffer;
 		// for (teller = 0; teller < pcm.pos; teller++)
