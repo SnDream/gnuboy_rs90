@@ -5,8 +5,8 @@ char *strdup();
 
 #include "sound.h"
 
-static int dsp;
-static char *dsp_device;
+// static int dsp;
+// static char *dsp_device;
 static int stereo = 1;
 static int samplerate = 22050;
 static int sound = 1;
@@ -15,7 +15,9 @@ static snd_pcm_t *handle;
 
 void pcm_silence()
 {
+	if (handle) snd_pcm_drain(handle);
 	memset(pcm.buf, 0, pcm.len);	
+	pcm.pos = 0;
 }
 
 void setvolume(int involume)
@@ -70,7 +72,7 @@ void pcm_init()
 		return;
 	}
 
-	rc = snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
+	rc = snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_U16_BE);
 	if (rc < 0)
 	{
 		fprintf(stderr, "Error:snd_pcm_hw_params_set_format %s\n", snd_strerror(rc));
@@ -118,6 +120,7 @@ void pcm_init()
 	pcm.hz = samplerate;
 	pcm.len = 2048;
 	pcm.buf = malloc(pcm.len * 2);
+	pcm.pos = 0;
 	
 	return;
 }
@@ -132,36 +135,36 @@ void pcm_close()
 	
 	if (pcm.buf) free(pcm.buf);
 	memset(&pcm, 0, sizeof pcm);
-	close(dsp);
+	// close(dsp);
 }
 
 int pcm_submit()
 {
-	int teller;
-	short w;
-	char soundbuffer[4096];
+	// int teller;
+	// short w;
+	// char soundbuffer[4096];
 	long ret, len;
 	
-	if (dsp < 0)
-	{
-		pcm.pos = 0;
-		return 0;
-	}
+	// if (dsp < 0)
+	// {
+	// 	pcm.pos = 0;
+	// 	return 0;
+	// }
 	if (pcm.pos < pcm.len)
         return 1;
 
 	if (pcm.buf)
 	{
-		byte * bleh = (byte *) soundbuffer;
-		for (teller = 0; teller < pcm.pos; teller++)
-		{
-			w = (unsigned short)((pcm.buf[teller] - 128) << 8);
-			*bleh++ = w & 0xFF ;
-			*bleh++ = w >> 8;
-		}
+		// byte * bleh = (byte *) soundbuffer;
+		// for (teller = 0; teller < pcm.pos; teller++)
+		// {
+		// 	w = (unsigned short)((pcm.buf[teller] - 128) << 8);
+		// 	*bleh++ = w & 0xFF ;
+		// 	*bleh++ = w >> 8;
+		// }
 		
-		len = pcm.pos/4;
-		ret = snd_pcm_writei(handle, soundbuffer, len);
+		len = pcm.pos/2;
+		ret = snd_pcm_writei(handle, pcm.buf, len);
 		while(ret != len) 
 		{
 			if (ret < 0) 
@@ -172,7 +175,7 @@ int pcm_submit()
 			{
 				len -= ret;
 			}
-			ret = snd_pcm_writei(handle, soundbuffer, len);
+			ret = snd_pcm_writei(handle, pcm.buf, len);
 		}
 	}
 	pcm.pos = 0;
