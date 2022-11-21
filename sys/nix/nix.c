@@ -101,7 +101,7 @@ char *sys_getsavedir()
 
 void sys_initpath()
 {
-	static char homedir[128];
+	// static char homedir[128];
 	snprintf(homedir, sizeof(homedir), "%s/.gnuboy", getenv("HOME"));
 	snprintf(savesdir, sizeof(savesdir), "%s/.gnuboy/saves", getenv("HOME"));
 	snprintf(statesdir, sizeof(statesdir), "%s/.gnuboy/savestates", getenv("HOME"));

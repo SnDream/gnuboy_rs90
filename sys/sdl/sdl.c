@@ -63,6 +63,8 @@ extern char homedir[128];
 extern char savesdir[192];
 extern char statesdir[192];
 
+char *rom, *rom_name;
+
 void die(char *fmt, ...)
 {
 	va_list ap;
@@ -222,12 +224,12 @@ void menu()
                         fullscreen = 3;
                     break;
                 case 2 :
-					snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s_%d.sts", statesdir, cart.name, saveslot);
+					snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s_%d.sts", statesdir, rom_name, saveslot);
 					state_load(tmp_save_dir);
 					currentselection = 1;
                     break;
                 case 3 :
-					snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s_%d.sts", statesdir, cart.name, saveslot);
+					snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s_%d.sts", statesdir, rom_name, saveslot);
 					state_save(tmp_save_dir);
 					currentselection = 1;
                     break;
@@ -253,9 +255,9 @@ void menu()
     if (currentselection == 6)
     {
         emuquit = true;
-		snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.sav", savesdir, cart.name);
+		snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.sav", savesdir, rom_name);
 		sram_save(tmp_save_dir);
-		snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.rtc", savesdir, cart.name);
+		snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.rtc", savesdir, rom_name);
 		rtc_save(tmp_save_dir);
 	}
 }
@@ -288,6 +290,7 @@ void vid_init()
 
 	lcd.out.format = GB_PIXEL_565_LE;
 	lcd.out.buffer = fakescreen->pixels;
+	lcd.out.colorize = colorpalette;
 	lcd.out.enabled = 1;
 	SDL_FillRect(screen,NULL,0);
 	SDL_Flip(screen);
@@ -527,13 +530,17 @@ void vid_begin()
 
 int main(int argc, char *argv[])
 {
-	char* rom;
+	char* ptr;
 	char tmp_save_dir[192];
 	rom = strdup(argv[1]);
 	
 	sys_initpath();
 	
 	gnuboy_load_rom(rom);
+
+	snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/.gnuboy/bios/%s_bios.bin", getenv("HOME"),
+			hw.cgb ? "gbc" : "gb" );
+	gnuboy_load_bios(tmp_save_dir);
 	
 	/* If we have special perms, drop them ASAP! */
 	vid_preinit();
@@ -544,9 +551,17 @@ int main(int argc, char *argv[])
 	gnuboy_reset(1);
 	
 	/* Only load the SRAM after we reset the memory. */
-    snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.sav", savesdir, cart.name);
+
+	rom_name = strrchr(rom, '/');
+	if (!rom_name) rom_name = rom;
+	ptr = strrchr(rom_name, '.');
+	if (ptr) *ptr = 0;
+
+	snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.sav", savesdir, rom_name);
+	printf("%s\n", tmp_save_dir);
     sram_load(tmp_save_dir);
-    snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.rtc", savesdir, cart.name);
+    snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.rtc", savesdir, rom_name);
+	printf("%s\n", tmp_save_dir);
     rtc_load(tmp_save_dir);
 	
 	gnuboy_run(1);
