@@ -116,7 +116,7 @@ void menu()
     pressed = 0;
     currentselection = 1;
     
-    while (((currentselection != 1) && (currentselection != 6)) || (!pressed))
+    while (((currentselection != 1) && (currentselection != 7)) || (!pressed))
     {
         pressed = 0;
  		SDL_FillRect( backbuffer, NULL, 0 );
@@ -148,7 +148,9 @@ void menu()
         };
         print_string(colorpalette_mode[colorpalette], (currentselection == 5 ? TextRed : TextWhite), 0, 5, 95, backbuffer->pixels);
         
-		print_string("Quit", (currentselection == 6 ? TextRed : TextWhite), 0, 5, 110, backbuffer->pixels);
+		print_string("Reset", (currentselection == 6 ? TextRed : TextWhite), 0, 5, 110, backbuffer->pixels);
+
+		print_string("Quit", (currentselection == 7 ? TextRed : TextWhite), 0, 5, 125, backbuffer->pixels);
 
         while (SDL_PollEvent(&Event))
         {
@@ -159,11 +161,11 @@ void menu()
                     case SDLK_UP:
                         currentselection--;
                         if (currentselection == 0)
-                            currentselection = 6;
+                            currentselection = 7;
                         break;
                     case SDLK_DOWN:
                         currentselection++;
-                        if (currentselection == 7)
+                        if (currentselection == 8)
                             currentselection = 1;
                         break;
                     case SDLK_LCTRL:
@@ -210,7 +212,7 @@ void menu()
             }
             else if (Event.type == SDL_QUIT)
             {
-				currentselection = 6;
+				currentselection = 7;
 			}
         }
 
@@ -233,6 +235,10 @@ void menu()
 					state_save(tmp_save_dir);
 					currentselection = 1;
                     break;
+				case 6 :
+					gnuboy_reset(0);
+					currentselection = 1;
+					break;
 				default:
                     break;
             }
@@ -252,7 +258,7 @@ void menu()
     SDL_FillRect(screen, NULL, 0);
     SDL_Flip(screen);
     
-    if (currentselection == 6)
+    if (currentselection == 7)
     {
         emuquit = true;
 		snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.sav", savesdir, rom_name);
