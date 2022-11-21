@@ -254,10 +254,12 @@ static inline word readw(addr_t a)
 	{
 		return readb(a) | (readb(a + 1) << 8);
 	}
-	byte *p = hw.rmap[a >> 12];
-	if (p)
-	{
-		return *(word *)(p + a);
+	if ((a & 1) == 0) { /* fix Illegal Instruction */
+		byte *p = hw.rmap[a >> 12];
+		if (p)
+		{
+			return *(word *)(p + a);
+		}
 	}
 	return hw_read(a) | (hw_read(a + 1) << 8);
 }
@@ -272,11 +274,13 @@ static inline void writew(addr_t a, word w)
 		writeb(a + 1, w >> 8);
 		return;
 	}
-	byte *p = hw.wmap[a >> 12];
-	if (p)
-	{
-		*(word *)(p + a) = w;
-		return;
+	if ((a & 1) == 0) { /* fix Illegal Instruction */
+		byte *p = hw.wmap[a >> 12];
+		if (p)
+		{
+			*(word *)(p + a) = w;
+			return;
+		}
 	}
 	hw_write(a, w);
 	hw_write(a + 1, w >> 8);

@@ -579,7 +579,7 @@ byte hw_read(addr_t a)
 	{
 	case 0x0000: // Cart ROM bank 0
 		// BIOS is overlayed part of bank 0
-		if (a < 0x900 && (R_BIOS & 1) == 0)
+		if (hw.bios && a < 0x900 && (R_BIOS & 1) == 0)
 		{
 			if (a < 0x100)
 				return hw.bios[a];
