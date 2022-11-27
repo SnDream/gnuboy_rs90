@@ -8,4 +8,8 @@ extern void bitmap_scale(uint32_t startx, uint32_t starty, uint32_t viswidth, ui
 extern void upscale_160x144_to_212x160(uint16_t* restrict src, uint16_t* restrict dst);
 extern void upscale_160x144_to_212x144(uint16_t* restrict src, uint16_t* restrict dst);
 extern void upscale_160x144_to_240x160(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_240x144(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_320x240(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_320x216(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_240x216(uint16_t* restrict src, uint16_t* restrict dst);
 #endif

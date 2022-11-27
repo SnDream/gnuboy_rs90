@@ -18,14 +18,25 @@ esac
 
 print '[Desktop Entry]
 Type=Application
-Name=Game boy
+Name=GnuBoy
 Comment=Game boy emulator
-Exec=sdlgnuboy.dge %f
+Exec=sdlgnuboy.dge %f rs90
 Icon=icon
 Terminal=false
 Type=Application
 Categories=emulators;
 X-OD-NeedsDownscaling=false' > opk/default.rs90.desktop
+
+print '[Desktop Entry]
+Type=Application
+Name=GnuBoy
+Comment=Game boy emulator
+Exec=sdlgnuboy.dge %f rg99
+Icon=icon
+Terminal=false
+Type=Application
+Categories=emulators;
+X-OD-NeedsDownscaling=false' > opk/default.rg99.desktop
 
 mksquashfs ./opk gnuboy_rs90.opk -all-root -noappend -no-exports -no-xattrs
 

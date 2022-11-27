@@ -32,6 +32,11 @@
 #include "save.h"
 #include "rtc.h"
 
+#define HOST_RS90 0
+#define HOST_RG99 1
+
+int host_type = HOST_RS90;
+
 bool emuquit = 0;
 int speedup = 0;
 
@@ -42,6 +47,12 @@ static char datfile[512];
 static int fullscreen = 0;
 static SDL_Surface *fakescreen = NULL;
 SDL_Surface *screen, *backbuffer;
+
+#define DEBUG_RG99_IN_RS90 0
+#if DEBUG_RG99_IN_RS90
+static SDL_Surface *rg99_dbg_screen;
+static SDL_Rect rg99_rect = { .x = 0, .y = 0, .w = 240, .h = 160 };
+#endif
 
 static uint32_t menu_triggers = 0;
 
@@ -132,15 +143,28 @@ void menu()
 		snprintf(text, sizeof(text), "Save State: %d", saveslot);
 		print_string(text,  (currentselection == 3 ? TextRed : TextWhite), 0, 5, 65, backbuffer->pixels);
 		
-        char scaling_mode[4][32] = {
-            "Scaling   : Native",
-            "Scaling   : 3:2 (Full)", 
-            "Scaling   : 4:3", 
-            "Scaling   : 3:2 (Alt)"
-        };
+		char *scaling_mode_rs90[5] = {
+			"Scaling   : Native",
+			"Scaling   : 3:2 (Full)", 
+			"Scaling   : 5:3", 
+			"Scaling   : 3:2 (Alt)"
+		};
+		char *scaling_mode_rg99[4] = {
+			"Scaling   : Native",
+			"Scaling   : 1:1 (1.5x)", 
+			"Scaling   : 4:3", 
+			"Scaling   : 40:27"
+		};
+
+		char **scaling_mode;
+		if (host_type == HOST_RG99) {
+			scaling_mode = &scaling_mode_rg99;
+		} else {
+			scaling_mode = &scaling_mode_rs90;
+		}
         print_string(scaling_mode[fullscreen],  (currentselection == 4 ? TextRed : TextWhite), 0, 5, 80, backbuffer->pixels);
  
-        char colorpalette_mode[5][32] = {
+        char *colorpalette_mode[5]= {
             "Mono Color: GBC",
             "Mono Color: Green shades",
             "Mono Color: Black & White",
@@ -271,13 +295,21 @@ void menu()
 
 void vid_init()
 {
+	int w = 0, h = 0;
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO))
 	{
 		printf("SDL: Couldn't initialize SDL: %s\n", SDL_GetError());
 		exit(1);
 	}
 
-	screen = SDL_SetVideoMode(0, 0, 16, SDL_HWSURFACE
+#if !DEBUG_RG99_IN_RS90
+	if (host_type == HOST_RG99) {
+		w = 320;
+		h = 240;
+	}
+#endif
+
+	screen = SDL_SetVideoMode(w, h, 16, SDL_HWSURFACE
 	#ifdef SDL_TRIPLEBUF
 	| SDL_TRIPLEBUF
 	#else
@@ -294,6 +326,9 @@ void vid_init()
 	
 	backbuffer = SDL_CreateRGBSurface(SDL_HWSURFACE, screen->w, screen->h, 16, 0, 0, 0, 0);
 	fakescreen = SDL_CreateRGBSurface(SDL_HWSURFACE, 160, 144, 16, 0, 0, 0, 0);
+#if DEBUG_RG99_IN_RS90
+	rg99_dbg_screen = SDL_CreateRGBSurface(SDL_HWSURFACE, 320, 240, 16, 0, 0, 0, 0);
+#endif
 
 	lcd.out.format = GB_PIXEL_565_LE;
 	lcd.out.buffer = fakescreen->pixels;
@@ -413,6 +448,9 @@ void ev_poll()
 			pcm_silence();
 		}
 		SDL_FillRect(screen, NULL, 0 );
+#if DEBUG_RG99_IN_RS90
+		SDL_FillRect(rg99_dbg_screen, NULL, 0 );
+#endif
 		SDL_Flip(screen);
 		SDL_PauseAudio(0);
 	}
@@ -457,6 +495,9 @@ static void vid_close()
 	
 	if (fakescreen) SDL_FreeSurface(fakescreen);
 	if (backbuffer) SDL_FreeSurface(backbuffer);
+#if DEBUG_RG99_IN_RS90
+	if (rg99_dbg_screen) SDL_FreeSurface(rg99_dbg_screen);
+#endif
     
 	if (screen)
 	{
@@ -491,19 +532,57 @@ void vid_begin()
 		speedup = 1;
 	}
 	/* If screen width is 240 then use RS-90 codepath, otherwise use Generic. */
-	if (screen->w == 240)
+	if (host_type == HOST_RS90)
 	{
 		switch(fullscreen) 
 		{
 			case 1: // 3:2(Full)
 				upscale_160x144_to_240x160((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
-			case 2: // scale 4:3
-				upscale_160x144_to_212x160((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			case 2: // 5:3
+				upscale_160x144_to_240x144((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
 			case 3: // 3:2(Alt)
 				upscale_160x144_to_212x144((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
+			default: // native resolution
+				//bitmap_scale(0,0,160,144,160,144, 160, screen->w-160, (uint16_t* restrict)fakescreen->pixels,(uint16_t* restrict)screen->pixels+(screen->h-144)/2*screen->w + (screen->w-160)/2);
+				src_dest.x = (screen->w-160)/2;
+				src_dest.y = (screen->h-144)/2;
+				src_dest.w = 160;
+				src_dest.h = 144;
+				SDL_BlitSurface(fakescreen, NULL, screen, &src_dest);
+			break;
+		}
+	}
+	else if (host_type == HOST_RG99)
+	{
+		switch(fullscreen) 
+		{
+#if !DEBUG_RG99_IN_RS90
+			case 1: // 1:1 (1.5x)
+				upscale_160x144_to_240x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+			case 2: // scale 4:3
+				upscale_160x144_to_320x240((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+			case 3: // 40:27
+				upscale_160x144_to_320x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+#else
+			case 1: // 1:1 (1.5x)
+				upscale_160x144_to_240x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)rg99_dbg_screen->pixels);
+				SDL_BlitSurface(rg99_dbg_screen, &rg99_rect, screen, NULL);
+			break;
+			case 2: // scale 4:3
+				upscale_160x144_to_320x240((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)rg99_dbg_screen->pixels);
+				SDL_BlitSurface(rg99_dbg_screen, &rg99_rect, screen, NULL);
+			break;
+			case 3: // 40:27
+				upscale_160x144_to_320x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)rg99_dbg_screen->pixels);
+				SDL_BlitSurface(rg99_dbg_screen, &rg99_rect, screen, NULL);
+			break;
+#endif
 			default: // native resolution
 				//bitmap_scale(0,0,160,144,160,144, 160, screen->w-160, (uint16_t* restrict)fakescreen->pixels,(uint16_t* restrict)screen->pixels+(screen->h-144)/2*screen->w + (screen->w-160)/2);
 				src_dest.x = (screen->w-160)/2;
@@ -550,6 +629,10 @@ int main(int argc, char *argv[])
 	char* ptr;
 	char tmp_save_dir[192];
 	rom = strdup(argv[1]);
+
+	if (strcmp(argv[2], "rg99") == 0) {
+		host_type = HOST_RG99;
+	}
 	
 	sys_initpath();
 	
