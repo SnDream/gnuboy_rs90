@@ -158,9 +158,9 @@ void menu()
 
 		char **scaling_mode;
 		if (host_type == HOST_RG99) {
-			scaling_mode = &scaling_mode_rg99;
+			scaling_mode = &scaling_mode_rg99[0];
 		} else {
-			scaling_mode = &scaling_mode_rs90;
+			scaling_mode = &scaling_mode_rs90[0];
 		}
         print_string(scaling_mode[fullscreen],  (currentselection == 4 ? TextRed : TextWhite), 0, 5, 80, backbuffer->pixels);
  
@@ -630,7 +630,7 @@ int main(int argc, char *argv[])
 	char tmp_save_dir[192];
 	rom = strdup(argv[1]);
 
-	if (strcmp(argv[2], "rg99") == 0) {
+	if (strstr(argv[0], "rg99")) {
 		host_type = HOST_RG99;
 	}
 	

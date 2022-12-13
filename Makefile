@@ -28,7 +28,9 @@ endif
 
 ASFLAGS = $(CFLAGS)
 
-TARGETS =  sdlgnuboy.dge
+TARGETS_RS90 =  sdlgnuboy_rs90.dge
+TARGETS_RG99 =  sdlgnuboy_rg99.dge
+TARGETS = $(TARGETS_RS90) $(TARGETS_RG99)
 
 ASM_OBJS =
 
@@ -36,15 +38,19 @@ SYS_DEFS = -DIS_LITTLE_ENDIAN  -DIS_LINUX -DNATIVE_AUDIO
 SYS_OBJS = sys/nix/nix.o $(ASM_OBJS)
 SYS_INCS = -I./sys/nix -Ifont -Isrc/core -Isys
 
-SDL_OBJS = sys/sdl/sdl.o sys/sdl/keymap.o sys/sdl/scaler.o sys/sdl/font_drawing.o sys/alsa/alsa.o
+SDL_OBJS = sys/sdl/sdl.o sys/sdl/keymap.o sys/sdl/scaler.o sys/sdl/font_drawing.o
+SDL_OBJS_RS90 = sys/alsa/alsa.o
+SDL_OBJS_RG99 = sys/sdl/sdl_audio_rg99.c
 
 all: $(TARGETS)
 
 include Rules
 
-$(TARGETS): $(OBJS) $(SYS_OBJS) $(SDL_OBJS)
-	$(LD) $(CFLAGS) $(OBJS) $(SYS_OBJS) $(SDL_OBJS) -o $@ $(LDFLAGS)
+$(TARGETS_RS90): $(OBJS) $(SYS_OBJS) $(SDL_OBJS) $(SDL_OBJS_RS90)
+	$(LD) $(CFLAGS) $(OBJS) $(SYS_OBJS) $(SDL_OBJS) $(SDL_OBJS_RS90) -o $@ $(LDFLAGS)
 
+$(TARGETS_RG99): $(OBJS) $(SYS_OBJS) $(SDL_OBJS) $(SDL_OBJS_RG99)
+	$(LD) $(CFLAGS) $(OBJS) $(SYS_OBJS) $(SDL_OBJS) $(SDL_OBJS_RG99) -o $@ $(LDFLAGS)
 
 clean:
 	rm -f *gnuboy gmon.out src/core/*.o sys/*.o sys/*/*.o
