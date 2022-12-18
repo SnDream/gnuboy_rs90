@@ -48,16 +48,10 @@ static int fullscreen = 0;
 static SDL_Surface *fakescreen = NULL;
 SDL_Surface *screen, *backbuffer;
 
-#define DEBUG_RG99_IN_RS90 0
-#if DEBUG_RG99_IN_RS90
-static SDL_Surface *rg99_dbg_screen;
-static SDL_Rect rg99_rect = { .x = 0, .y = 0, .w = 240, .h = 160 };
-#endif
-
 static uint32_t menu_triggers = 0;
 
 static bool frameskip = 0;
-static bool useframeskip = 0;
+static int useframeskip = 0;
 static bool showfps = 0;
 static int fps = 0;
 static int framecounter = 0;
@@ -115,6 +109,8 @@ static char *basefolder(char *s)
 
 extern void cleanup();
 
+void sdl_videomode_set();
+
 void menu()
 {
 	char tmp_save_dir[256];
@@ -128,7 +124,7 @@ void menu()
     pressed = 0;
     currentselection = 1;
     
-    while (((currentselection != 1) && (currentselection != 7)) || (!pressed))
+    while (((currentselection != 1) && (currentselection != 8)) || (!pressed))
     {
         pressed = 0;
  		SDL_FillRect( backbuffer, NULL, 0 );
@@ -172,10 +168,17 @@ void menu()
             "Mono Color: Black & Red"
         };
         print_string(colorpalette_mode[colorpalette], (currentselection == 5 ? TextRed : TextWhite), 0, 5, 95, backbuffer->pixels);
-        
-		print_string("Reset", (currentselection == 6 ? TextRed : TextWhite), 0, 5, 110, backbuffer->pixels);
 
-		print_string("Quit", (currentselection == 7 ? TextRed : TextWhite), 0, 5, 125, backbuffer->pixels);
+		char *frameskip_mode[]= {
+			"Frameskip: off",
+			"Frameskip: vsync off",
+			"Frameskip: on",
+		};
+		print_string(frameskip_mode[useframeskip], (currentselection == 6 ? TextRed : TextWhite), 0, 5, 110, backbuffer->pixels);
+
+		print_string("Reset", (currentselection == 7 ? TextRed : TextWhite), 0, 5, 125, backbuffer->pixels);
+
+		print_string("Quit", (currentselection == 8 ? TextRed : TextWhite), 0, 5, 140, backbuffer->pixels);
 
         while (SDL_PollEvent(&Event))
         {
@@ -186,11 +189,11 @@ void menu()
                     case SDLK_UP:
                         currentselection--;
                         if (currentselection == 0)
-                            currentselection = 7;
+                            currentselection = 8;
                         break;
                     case SDLK_DOWN:
                         currentselection++;
-                        if (currentselection == 8)
+                        if (currentselection == 9)
                             currentselection = 1;
                         break;
                     case SDLK_LCTRL:
@@ -213,6 +216,9 @@ void menu()
 							break;
                             case 5:
                                 if (colorpalette > 0) colorpalette --;
+							break;
+                            case 6:
+                                if (useframeskip > 0) useframeskip --;
                             break;
                         }
                         break;
@@ -229,6 +235,9 @@ void menu()
                             case 5:
                                 if (colorpalette < 4) colorpalette++;
                             break;
+                            case 6:
+                                if (useframeskip < 2) useframeskip++;
+                            break;
                         }
                         break;
 					default:
@@ -237,7 +246,7 @@ void menu()
             }
             else if (Event.type == SDL_QUIT)
             {
-				currentselection = 7;
+				currentselection = 8;
 			}
         }
 
@@ -260,7 +269,7 @@ void menu()
 					state_save(tmp_save_dir);
 					currentselection = 1;
                     break;
-				case 6 :
+				case 7 :
 					gnuboy_reset(0);
 					currentselection = 1;
 					break;
@@ -275,7 +284,8 @@ void menu()
     
 	lcd.out.colorize = colorpalette;
 	lcd_rebuildpal();
-    
+
+	sdl_videomode_set();
     SDL_FillRect(screen, NULL, 0);
     SDL_Flip(screen);
     SDL_FillRect(screen, NULL, 0);
@@ -283,7 +293,7 @@ void menu()
     SDL_FillRect(screen, NULL, 0);
     SDL_Flip(screen);
     
-    if (currentselection == 7)
+    if (currentselection == 8)
     {
         emuquit = true;
 		snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s.sav", savesdir, rom_name);
@@ -293,42 +303,49 @@ void menu()
 	}
 }
 
-void vid_init()
+void sdl_videomode_set()
 {
 	int w = 0, h = 0;
+	uint32_t flags;
+	const SDL_VideoInfo *vi;
+
+	vi = SDL_GetVideoInfo();
+	if (vi->current_w == 240) {
+		host_type = HOST_RS90;
+	} else {
+		host_type = HOST_RG99;
+		w = 320;
+		h = 240;
+	}
+
+	if (useframeskip == 1) {
+		flags = SDL_SWSURFACE;
+	} else {
+		flags = SDL_HWSURFACE | SDL_TRIPLEBUF;
+	}
+
+	screen = SDL_SetVideoMode(w, h, 16, flags);
+	if(!screen)
+	{
+		printf("SDL: can't set video mode: %s\n", SDL_GetError());
+		exit(1);
+	}
+}
+
+void vid_init()
+{
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO))
 	{
 		printf("SDL: Couldn't initialize SDL: %s\n", SDL_GetError());
 		exit(1);
 	}
 
-#if !DEBUG_RG99_IN_RS90
-	if (host_type == HOST_RG99) {
-		w = 320;
-		h = 240;
-	}
-#endif
-
-	screen = SDL_SetVideoMode(w, h, 16, SDL_HWSURFACE
-	#ifdef SDL_TRIPLEBUF
-	| SDL_TRIPLEBUF
-	#else
-	| SDL_DOUBLEBUF
-	#endif
-	);
-	if(!screen)
-	{
-		printf("SDL: can't set video mode: %s\n", SDL_GetError());
-		exit(1);
-	}
-
 	SDL_ShowCursor(0);
+
+	sdl_videomode_set();
 	
-	backbuffer = SDL_CreateRGBSurface(SDL_HWSURFACE, screen->w, screen->h, 16, 0, 0, 0, 0);
-	fakescreen = SDL_CreateRGBSurface(SDL_HWSURFACE, 160, 144, 16, 0, 0, 0, 0);
-#if DEBUG_RG99_IN_RS90
-	rg99_dbg_screen = SDL_CreateRGBSurface(SDL_HWSURFACE, 320, 240, 16, 0, 0, 0, 0);
-#endif
+	backbuffer = SDL_CreateRGBSurface(SDL_SWSURFACE, screen->w, screen->h, 16, 0, 0, 0, 0);
+	fakescreen = SDL_CreateRGBSurface(SDL_SWSURFACE, 160, 144, 16, 0, 0, 0, 0);
 
 	lcd.out.format = GB_PIXEL_565_LE;
 	lcd.out.buffer = fakescreen->pixels;
@@ -448,15 +465,14 @@ void ev_poll()
 			pcm_silence();
 		}
 		SDL_FillRect(screen, NULL, 0 );
-#if DEBUG_RG99_IN_RS90
-		SDL_FillRect(rg99_dbg_screen, NULL, 0 );
-#endif
 		SDL_Flip(screen);
 		SDL_PauseAudio(0);
 	}
     
 
 }
+
+#define READ_VALUE_LIMIT(val, min, max) (val) = (val) < (min) ? (min) : ((val) > (max) ? (max) : (val))
 
 static void vid_preinit()
 {
@@ -474,10 +490,14 @@ static void vid_preinit()
 		fread(&fullscreen,sizeof(int),1,f);
 		fread(&volume,sizeof(int),1,f);
 		fread(&saveslot,sizeof(int),1,f);
-		fread(&useframeskip,sizeof(bool),1,f);
+		fread(&useframeskip,sizeof(int),1,f);
 		fread(&showfps,sizeof(bool),1,f);
         fread(&colorpalette,sizeof(int),1,f);
 		fclose(f);
+		READ_VALUE_LIMIT(fullscreen, 0, 3);
+		READ_VALUE_LIMIT(saveslot, 0, 9);
+		READ_VALUE_LIMIT(useframeskip, 0, 2);
+		READ_VALUE_LIMIT(colorpalette, 0, 4);
 	}
 	else
 	{
@@ -495,14 +515,11 @@ static void vid_close()
 	
 	if (fakescreen) SDL_FreeSurface(fakescreen);
 	if (backbuffer) SDL_FreeSurface(backbuffer);
-#if DEBUG_RG99_IN_RS90
-	if (rg99_dbg_screen) SDL_FreeSurface(rg99_dbg_screen);
-#endif
     
 	if (screen)
 	{
-		SDL_UnlockSurface(screen);
-		SDL_FreeSurface(screen);
+		// SDL_UnlockSurface(screen);
+		// SDL_FreeSurface(screen);
 		SDL_Quit();
 
 		f = fopen(datfile,"wb");
@@ -511,7 +528,7 @@ static void vid_close()
 			fwrite(&fullscreen,sizeof(int),1,f);
 			fwrite(&volume,sizeof(int),1,f);
 			fwrite(&saveslot,sizeof(int),1,f);
-			fwrite(&useframeskip,sizeof(bool),1,f);
+			fwrite(&useframeskip,sizeof(int),1,f);
 			fwrite(&showfps,sizeof(bool),1,f);
             fwrite(&colorpalette,sizeof(int),1,f);
 			fclose(f);
@@ -530,6 +547,11 @@ void vid_begin()
 			return;
 		}
 		speedup = 1;
+	}
+	static int drop_frame = 6;
+	if (useframeskip == 2 && !(--drop_frame)) {
+		drop_frame = 12;
+		return;
 	}
 	/* If screen width is 240 then use RS-90 codepath, otherwise use Generic. */
 	if (host_type == HOST_RS90)
@@ -559,7 +581,6 @@ void vid_begin()
 	{
 		switch(fullscreen) 
 		{
-#if !DEBUG_RG99_IN_RS90
 			case 1: // 1:1 (1.5x)
 				upscale_160x144_to_240x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
@@ -569,20 +590,6 @@ void vid_begin()
 			case 3: // 40:27
 				upscale_160x144_to_320x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
-#else
-			case 1: // 1:1 (1.5x)
-				upscale_160x144_to_240x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)rg99_dbg_screen->pixels);
-				SDL_BlitSurface(rg99_dbg_screen, &rg99_rect, screen, NULL);
-			break;
-			case 2: // scale 4:3
-				upscale_160x144_to_320x240((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)rg99_dbg_screen->pixels);
-				SDL_BlitSurface(rg99_dbg_screen, &rg99_rect, screen, NULL);
-			break;
-			case 3: // 40:27
-				upscale_160x144_to_320x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)rg99_dbg_screen->pixels);
-				SDL_BlitSurface(rg99_dbg_screen, &rg99_rect, screen, NULL);
-			break;
-#endif
 			default: // native resolution
 				//bitmap_scale(0,0,160,144,160,144, 160, screen->w-160, (uint16_t* restrict)fakescreen->pixels,(uint16_t* restrict)screen->pixels+(screen->h-144)/2*screen->w + (screen->w-160)/2);
 				src_dest.x = (screen->w-160)/2;
@@ -630,10 +637,6 @@ int main(int argc, char *argv[])
 	char tmp_save_dir[192];
 	rom = strdup(argv[1]);
 
-	if (strstr(argv[0], "rg99")) {
-		host_type = HOST_RG99;
-	}
-	
 	sys_initpath();
 	
 	gnuboy_load_rom(rom);

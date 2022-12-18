@@ -1,8 +1,7 @@
 #!/bin/sh
 
 mkdir -p opk
-cp ./sdlgnuboy_rs90.dge opk/sdlgnuboy_rs90.dge
-cp ./sdlgnuboy_rg99.dge opk/sdlgnuboy_rg99.dge
+cp ./sdlgnuboy.dge opk/sdlgnuboy.dge
 cp ./icon.png opk/icon.png
 cp ./COPYING opk/COPYING
 
@@ -21,7 +20,7 @@ print '[Desktop Entry]
 Type=Application
 Name=GnuBoy
 Comment=Game boy emulator
-Exec=sdlgnuboy_rs90.dge %f
+Exec=sdlgnuboy.dge %f
 Icon=icon
 Terminal=false
 Type=Application
@@ -32,7 +31,7 @@ print '[Desktop Entry]
 Type=Application
 Name=GnuBoy
 Comment=Game boy emulator
-Exec=sdlgnuboy_rg99.dge %f
+Exec=sdlgnuboy.dge %f
 Icon=icon
 Terminal=false
 Type=Application
