@@ -213,6 +213,10 @@ typedef struct
 	FILE *romFile;
 	FILE *sramFile;
 
+#ifdef HAVE_MMAP
+	byte *romMmap;
+#endif
+
 	un16 colorize;
 	un16 checksum;
 	char name[20];

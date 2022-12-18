@@ -9,6 +9,10 @@
 #include "lcd.h"
 #include "rtc.h"
 
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+#include <errno.h>
+#endif
 
 int gnuboy_init(void)
 {
@@ -130,7 +134,7 @@ int gnuboy_load_bios(const char *file)
 	return 0;
 }
 
-
+#ifndef HAVE_MMAP
 void gnuboy_load_bank(int bank)
 {
 	const size_t BANK_SIZE = 0x4000;
@@ -165,7 +169,19 @@ void gnuboy_load_bank(int bank)
 			gnuboy_die("ROM bank loading failed");
 	}
 }
+#else
+void gnuboy_load_bank(int bank)
+{
+	const size_t BANK_SIZE = 0x4000;
+	const size_t OFFSET = bank * BANK_SIZE;
 
+	if (!cart.romMmap)
+		return;
+
+	MESSAGE_DEBUG("loading bank %d.\n", bank);
+	cart.rombanks[bank] = cart.romMmap + OFFSET;
+}
+#endif
 
 int gnuboy_load_rom(const char *file)
 {
@@ -191,6 +207,17 @@ int gnuboy_load_rom(const char *file)
 	{
 		gnuboy_die("ROM fread failed");
 	}
+
+#ifdef HAVE_MMAP
+	fseek(cart.romFile, 0, SEEK_END);
+	int fsize = ftell(cart.romFile);
+	fseek(cart.romFile, 0, SEEK_SET);
+	cart.romMmap = (uint8_t *)mmap(NULL, fsize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(cart.romFile), 0);
+	if (cart.romMmap == MAP_FAILED) {
+		cart.romMmap = NULL;
+		gnuboy_die("ROM mmap failed");
+	}
+#endif
 
 	int type = header[0x0147];
 	int romsize = header[0x0148];
@@ -338,7 +365,7 @@ int gnuboy_load_rom(const char *file)
 
 	// Gameboy color games can be very large so we only load 1024K for faster boot
 	// Also 4/8MB games do not fully fit, our bank manager takes care of swapping.
-
+#ifndef HAVE_MMAP
 	int preload = cart.romsize < 64 ? cart.romsize : 64;
 
 	if (cart.romsize > 64 && (strncmp(cart.name, "RAYMAN", 6) == 0 || strncmp(cart.name, "NONAME", 6) == 0))
@@ -352,6 +379,12 @@ int gnuboy_load_rom(const char *file)
 	{
 		gnuboy_load_bank(i);
 	}
+#else 
+	for (int i = 0; i < cart.romsize; i++)
+	{
+		gnuboy_load_bank(i);
+	}
+#endif
 
 	// Apply game-specific hacks
 	if (strncmp(cart.name, "SIREN GB2 ", 11) == 0 || strncmp(cart.name, "DONKEY KONG", 11) == 0)
@@ -366,6 +399,7 @@ int gnuboy_load_rom(const char *file)
 
 void gnuboy_free_rom(void)
 {
+#ifndef HAVE_MMAP
 	for (int i = 0; i < 512; i++)
 	{
 		if (cart.rombanks[i]) {
@@ -373,6 +407,13 @@ void gnuboy_free_rom(void)
 			cart.rombanks[i] = NULL;
 		}
 	}
+#else
+	if (cart.romMmap) {
+		munmap((void *)cart.romMmap, 0);
+		cart.romMmap = NULL;
+	}
+#endif
+
 	free(cart.rambanks);
 	cart.rambanks = NULL;
 
