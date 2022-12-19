@@ -324,3 +324,126 @@ void upscale_160x144_to_240x216(uint16_t* restrict src, uint16_t* restrict dst){
         d += 320 * 2 + 80;
     }
 }
+
+
+//upscale 4:3 in rg99
+void upscale_160x144_to_320x480(uint16_t* restrict src, uint16_t* restrict dst){    
+    uint16_t* __restrict__ buffer_mem;
+    uint16_t* d = dst;
+    const uint16_t ix = 1, iy = 3;
+    
+    for (int y = 0; y < 144; y += iy)
+    {
+        int x = 0;
+        buffer_mem = &src[y * 160];
+        for(int w = 0; w < 160; w++)
+        {
+            uint16_t rgb0, rgb1, rgb2;
+            uint16_t r0, g0, b0, r1, b1, g1, r2, b2, g2, rgb01, rgb12;
+            rgb0 =buffer_mem[x + 0 * 160];
+            rgb1 =buffer_mem[x + 1 * 160];
+            rgb2 =buffer_mem[x + 2 * 160];
+            r0 = rgb0 & RMASK;
+            g0 = rgb0 & GMASK;
+            b0 = rgb0 & BMASK;
+            r1 = rgb1 & RMASK;
+            g1 = rgb1 & GMASK;
+            b1 = rgb1 & BMASK;
+            r2 = rgb2 & RMASK;
+            g2 = rgb2 & GMASK;
+            b2 = rgb2 & BMASK;
+            rgb01 =   ((((uint32_t)r0 + r1 + r1) / 3) & (RMASK))
+                    | ((((uint32_t)g0 + g1 + g1) / 3) & (GMASK))
+                    | ((((uint32_t)b0 + b1 + b1) / 3) & (BMASK));
+            rgb12 =   ((((uint32_t)r2 + r1 + r1) / 3) & (RMASK))
+                    | ((((uint32_t)g2 + g1 + g1) / 3) & (GMASK))
+                    | ((((uint32_t)b2 + b1 + b1) / 3) & (BMASK));
+
+            *(d + 0 * 320 + 0) = rgb0;
+            *(d + 0 * 320 + 1) = rgb0;
+            *(d + 1 * 320 + 0) = rgb0;
+            *(d + 1 * 320 + 1) = rgb0;
+            *(d + 2 * 320 + 0) = rgb0;
+            *(d + 2 * 320 + 1) = rgb0;
+            *(d + 3 * 320 + 0) = rgb01;
+            *(d + 3 * 320 + 1) = rgb01;
+            *(d + 4 * 320 + 0) = rgb1;
+            *(d + 4 * 320 + 1) = rgb1;
+            *(d + 5 * 320 + 0) = rgb1;
+            *(d + 5 * 320 + 1) = rgb1;
+            *(d + 6 * 320 + 0) = rgb12;
+            *(d + 6 * 320 + 1) = rgb12;
+            *(d + 7 * 320 + 0) = rgb2;
+            *(d + 7 * 320 + 1) = rgb2;
+            *(d + 8 * 320 + 0) = rgb2;
+            *(d + 8 * 320 + 1) = rgb2;
+            *(d + 9 * 320 + 0) = rgb2;
+            *(d + 9 * 320 + 1) = rgb2;
+
+            d += 2;
+            x += ix;
+        }
+        d += 320 * 9;
+    }
+}
+
+//upscale 40:27 in rg99
+void upscale_160x144_to_320x432(uint16_t* restrict src, uint16_t* restrict dst){    
+    uint16_t* __restrict__ buffer_mem;
+    uint16_t* d = dst + (320 * 12 * 2);
+    const uint16_t ix = 1, iy = 1;
+    
+    for (int y = 0; y < 144; y += iy)
+    {
+        int x = 0;
+        buffer_mem = &src[y * 160];
+        for(int w = 0; w < 160; w++)
+        {
+            uint16_t rgb = buffer_mem[x + 0 * 160];
+            *(d + 0 * 320 + 0) = rgb;
+            *(d + 0 * 320 + 1) = rgb;
+            *(d + 1 * 320 + 0) = rgb;
+            *(d + 1 * 320 + 1) = rgb;
+            *(d + 2 * 320 + 0) = rgb;
+            *(d + 2 * 320 + 1) = rgb;
+
+            d += 2;
+            x += ix;
+        }
+        d += 320 * 2;
+    }
+}
+
+//upscale 1:1(1.5x) in rg99
+void upscale_160x144_to_240x432(uint16_t* restrict src, uint16_t* restrict dst){    
+    uint16_t* __restrict__ buffer_mem;
+    uint16_t* d = dst + (320 * 12 * 2 + 40);
+    const uint16_t ix = 2, iy = 1;
+    
+    for (int y = 0; y < 144; y += iy)
+    {
+        int x = 0;
+        buffer_mem = &src[y * 160];
+        for(int w = 0; w < 160 / 2; w++)
+        {
+            uint16_t rgb0, rgb1, rgb01;
+            rgb0 = buffer_mem[x + 0 * 160 + 0];
+            rgb1 = buffer_mem[x + 0 * 160 + 1];
+            rgb01 = mix_rgb565(rgb0, rgb1);
+
+            *(d + 0 * 320 + 0) = rgb0;
+            *(d + 1 * 320 + 0) = rgb0;
+            *(d + 2 * 320 + 0) = rgb0;
+            *(d + 0 * 320 + 1) = mix_rgb565(rgb0, rgb1);
+            *(d + 1 * 320 + 1) = mix_rgb565(rgb0, rgb1);
+            *(d + 2 * 320 + 1) = mix_rgb565(rgb0, rgb1);
+            *(d + 0 * 320 + 2) = rgb1;
+            *(d + 1 * 320 + 2) = rgb1;
+            *(d + 2 * 320 + 2) = rgb1;
+
+            d += 3;
+            x += ix;
+        }
+        d += 320 * 2 + 80;
+    }
+}

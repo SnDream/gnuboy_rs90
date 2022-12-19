@@ -12,4 +12,7 @@ extern void upscale_160x144_to_240x144(uint16_t* restrict src, uint16_t* restric
 extern void upscale_160x144_to_320x240(uint16_t* restrict src, uint16_t* restrict dst);
 extern void upscale_160x144_to_320x216(uint16_t* restrict src, uint16_t* restrict dst);
 extern void upscale_160x144_to_240x216(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_240x432(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_320x480(uint16_t* restrict src, uint16_t* restrict dst);
+extern void upscale_160x144_to_320x432(uint16_t* restrict src, uint16_t* restrict dst);
 #endif
