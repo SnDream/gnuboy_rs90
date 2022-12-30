@@ -264,7 +264,7 @@ static inline void mbc_write(addr_t a, byte b)
 			break;
 		case 0x4000:
 			if (cart.bankmode)
-				cart.rambank = b & 0x03;
+				cart.rambank = b & 0x03 & cart.rammask;
 			else
 				cart.rombank = (cart.rombank & 0x1F) | ((int)(b&3)<<5);
 			break;
@@ -296,7 +296,7 @@ static inline void mbc_write(addr_t a, byte b)
 			break;
 		case 0x4000:
 			rtc.sel = b & 0x0f;
-			cart.rambank = b & 0x03;
+			cart.rambank = b & 0x3 & cart.rammask;
 			break;
 		case 0x6000:
 			rtc_latch(b);
@@ -320,9 +320,9 @@ static inline void mbc_write(addr_t a, byte b)
 		case 0x4000:
 		case 0x5000:
 			if (cart.has_rumble)
-				cart.rambank = b & 0x0F;
+				cart.rambank = b & 0x7 & cart.rammask;
 			else
-				cart.rambank = b & ~8;
+				cart.rambank = b & 0xF & cart.rammask;
 			break;
 		case 0x6000:
 		case 0x7000:
@@ -346,7 +346,7 @@ static inline void mbc_write(addr_t a, byte b)
 			break;
 		case 0x4000:
 			if (cart.bankmode)
-				cart.rambank = b & 0x03;
+				cart.rambank = b & 0x03 & cart.rammask;
 			else
 				cart.rombank = (cart.rombank & 0x1F) | ((int)(b&3)<<5);
 			break;

@@ -281,6 +281,8 @@ int gnuboy_load_rom(const char *file)
 		cart.ramsize = 1;
 	}
 
+	cart.rammask = cart.ramsize - 1;
+
 	cart.rambanks = malloc(8192 * cart.ramsize);
 	if (!cart.rambanks)
 	{

@@ -209,6 +209,7 @@ typedef struct
 	int enableram;
 	int rombank;
 	int rambank;
+	int rammask;
 
 	FILE *romFile;
 	FILE *sramFile;
