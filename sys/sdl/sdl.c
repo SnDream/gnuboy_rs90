@@ -155,9 +155,9 @@ void menu()
 			"Scaling   : 1:1 (1.5x)", 
 			"Scaling   : 4:3", 
 			"Scaling   : 40:27",
-			"Scaling   : 1:1 (1.5x) (Alt) (420Mhz!)", 
-			"Scaling   : 4:3 (Alt) (420Mhz!)", 
-			"Scaling   : 40:27 (Alt) (420Mhz!)",
+			"Scaling   : 1:1 (1.5x) (Alt)", 
+			"Scaling   : 4:3 (Alt)", 
+			"Scaling   : 40:27 (Alt)",
 		};
 
 		char **scaling_mode;
@@ -571,22 +571,23 @@ void vid_begin()
 			return;
 		}
 		speedup = 1;
-	}
-	static int drop_frame = 6;
-	static uint32_t next_tick = 0, now_tick = 0;
-	switch (useframeskip) {
-	case 3:
-		if (--drop_frame) break;
-		drop_frame = 30;
-		return;
-	case 2:
-		now_tick = SDL_GetTicks();
-		if (next_tick > now_tick) {
-			next_tick += (1000 / 60);
-			break;
+	} else {
+		static int drop_frame = 6;
+		static uint32_t next_tick = 0, now_tick = 0;
+		switch (useframeskip) {
+		case 3:
+			if (--drop_frame) break;
+			drop_frame = 30;
+			return;
+		case 2:
+			now_tick = SDL_GetTicks();
+			if (next_tick > now_tick) {
+				next_tick += (1000 / 60);
+				break;
+			}
+			next_tick = now_tick + (1000 / 60);
+			return;
 		}
-		next_tick = now_tick + (1000 / 60);
-		return;
 	}
 	/* If screen width is 240 then use RS-90 codepath, otherwise use Generic. */
 	if (host_type == HOST_RS90)
