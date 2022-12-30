@@ -109,7 +109,7 @@ static char *basefolder(char *s)
 
 extern void cleanup();
 
-void sdl_videomode_set();
+void sdl_videomode_set(int mode);
 
 void menu()
 {
@@ -123,6 +123,8 @@ void menu()
     
     pressed = 0;
     currentselection = 1;
+
+	sdl_videomode_set(1);
     
     while (((currentselection != 1) && (currentselection != 8)) || (!pressed))
     {
@@ -139,17 +141,23 @@ void menu()
 		snprintf(text, sizeof(text), "Save State: %d", saveslot);
 		print_string(text,  (currentselection == 3 ? TextRed : TextWhite), 0, 5, 65, backbuffer->pixels);
 		
-		char *scaling_mode_rs90[5] = {
+		char *scaling_mode_rs90[] = {
 			"Scaling   : Native",
 			"Scaling   : 3:2 (Full)", 
 			"Scaling   : 5:3", 
-			"Scaling   : 3:2 (Alt)"
+			"Scaling   : 3:2 (Alt)",
+			"Scaling   : 4:3",
+			"Scaling   : N/A 1",
+			"Scaling   : N/A 2",
 		};
-		char *scaling_mode_rg99[4] = {
+		char *scaling_mode_rg99[] = {
 			"Scaling   : Native",
 			"Scaling   : 1:1 (1.5x)", 
 			"Scaling   : 4:3", 
-			"Scaling   : 40:27"
+			"Scaling   : 40:27",
+			"Scaling   : 1:1 (1.5x) (Alt) (420Mhz!)", 
+			"Scaling   : 4:3 (Alt) (420Mhz!)", 
+			"Scaling   : 40:27 (Alt) (420Mhz!)",
 		};
 
 		char **scaling_mode;
@@ -169,11 +177,24 @@ void menu()
         };
         print_string(colorpalette_mode[colorpalette], (currentselection == 5 ? TextRed : TextWhite), 0, 5, 95, backbuffer->pixels);
 
-		char *frameskip_mode[]= {
-			"Frameskip: off",
-			"Frameskip: vsync off",
-			"Frameskip: on",
+		char *frameskip_mode_rs90[]= {
+			"Frameskip : off",
+			"Frameskip : vsync off",
+			"Frameskip : auto",
+			"Frameskip : 1/30",
 		};
+		char *frameskip_mode_rg99[]= {
+			"Frameskip : off",
+			"Frameskip : vsync off",
+			"Frameskip : auto",
+			"Frameskip : 1/30 (420Mhz!)",
+		};
+		char **frameskip_mode;
+		if (host_type == HOST_RG99) {
+			frameskip_mode = &frameskip_mode_rg99[0];
+		} else {
+			frameskip_mode = &frameskip_mode_rs90[0];
+		}
 		print_string(frameskip_mode[useframeskip], (currentselection == 6 ? TextRed : TextWhite), 0, 5, 110, backbuffer->pixels);
 
 		print_string("Reset", (currentselection == 7 ? TextRed : TextWhite), 0, 5, 125, backbuffer->pixels);
@@ -230,13 +251,13 @@ void menu()
                                 if (saveslot < 9) saveslot++;
 							break;
                             case 4:
-                                if (fullscreen < 3) fullscreen++;
+                                if (fullscreen < (host_type == HOST_RG99 ? 6 : 4)) fullscreen++;
 							break;
                             case 5:
                                 if (colorpalette < 4) colorpalette++;
                             break;
                             case 6:
-                                if (useframeskip < 2) useframeskip++;
+                                if (useframeskip < 3) useframeskip++;
                             break;
                         }
                         break;
@@ -256,8 +277,8 @@ void menu()
             {
                 case 4 :
                     fullscreen++;
-                    if (fullscreen > 3)
-                        fullscreen = 3;
+                    if (fullscreen > (host_type == HOST_RG99 ? 6 : 4))
+                        fullscreen = (host_type == HOST_RG99 ? 6 : 4);
                     break;
                 case 2 :
 					snprintf(tmp_save_dir, sizeof(tmp_save_dir), "%s/%s_%d.sts", statesdir, rom_name, saveslot);
@@ -285,7 +306,7 @@ void menu()
 	lcd.out.colorize = colorpalette;
 	lcd_rebuildpal();
 
-	sdl_videomode_set();
+	sdl_videomode_set(0);
     SDL_FillRect(screen, NULL, 0);
     SDL_Flip(screen);
     SDL_FillRect(screen, NULL, 0);
@@ -303,7 +324,7 @@ void menu()
 	}
 }
 
-void sdl_videomode_set()
+void sdl_videomode_set(int mode)
 {
 	int w = 0, h = 0;
 	uint32_t flags;
@@ -316,6 +337,9 @@ void sdl_videomode_set()
 		host_type = HOST_RG99;
 		w = 320;
 		h = 240;
+		if (!mode && fullscreen > 3) {
+			h = 480;
+		}
 	}
 
 	if (useframeskip == 1) {
@@ -342,7 +366,7 @@ void vid_init()
 
 	SDL_ShowCursor(0);
 
-	sdl_videomode_set();
+	sdl_videomode_set(0);
 	
 	backbuffer = SDL_CreateRGBSurface(SDL_SWSURFACE, screen->w, screen->h, 16, 0, 0, 0, 0);
 	fakescreen = SDL_CreateRGBSurface(SDL_SWSURFACE, 160, 144, 16, 0, 0, 0, 0);
@@ -494,9 +518,9 @@ static void vid_preinit()
 		fread(&showfps,sizeof(bool),1,f);
         fread(&colorpalette,sizeof(int),1,f);
 		fclose(f);
-		READ_VALUE_LIMIT(fullscreen, 0, 3);
+		READ_VALUE_LIMIT(fullscreen, 0, 6);
 		READ_VALUE_LIMIT(saveslot, 0, 9);
-		READ_VALUE_LIMIT(useframeskip, 0, 2);
+		READ_VALUE_LIMIT(useframeskip, 0, 3);
 		READ_VALUE_LIMIT(colorpalette, 0, 4);
 	}
 	else
@@ -549,8 +573,19 @@ void vid_begin()
 		speedup = 1;
 	}
 	static int drop_frame = 6;
-	if (useframeskip == 2 && !(--drop_frame)) {
-		drop_frame = 12;
+	static uint32_t next_tick = 0, now_tick = 0;
+	switch (useframeskip) {
+	case 3:
+		if (--drop_frame) break;
+		drop_frame = 30;
+		return;
+	case 2:
+		now_tick = SDL_GetTicks();
+		if (next_tick > now_tick) {
+			next_tick += (1000 / 60);
+			break;
+		}
+		next_tick = now_tick + (1000 / 60);
 		return;
 	}
 	/* If screen width is 240 then use RS-90 codepath, otherwise use Generic. */
@@ -566,6 +601,9 @@ void vid_begin()
 			break;
 			case 3: // 3:2(Alt)
 				upscale_160x144_to_212x144((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+			case 4: // 4:3
+				upscale_160x144_to_212x160((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
 			default: // native resolution
 				//bitmap_scale(0,0,160,144,160,144, 160, screen->w-160, (uint16_t* restrict)fakescreen->pixels,(uint16_t* restrict)screen->pixels+(screen->h-144)/2*screen->w + (screen->w-160)/2);
@@ -589,6 +627,15 @@ void vid_begin()
 			break;
 			case 3: // 40:27
 				upscale_160x144_to_320x216((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+			case 4: // 1:1 (1.5x) (Alt)
+				upscale_160x144_to_240x432((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+			case 5: // scale 4:3 (Alt)
+				upscale_160x144_to_320x480((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
+			break;
+			case 6: // 40:27 (Alt)
+				upscale_160x144_to_320x432((uint16_t* restrict)fakescreen->pixels, (uint16_t* restrict)screen->pixels);
 			break;
 			default: // native resolution
 				//bitmap_scale(0,0,160,144,160,144, 160, screen->w-160, (uint16_t* restrict)fakescreen->pixels,(uint16_t* restrict)screen->pixels+(screen->h-144)/2*screen->w + (screen->w-160)/2);
